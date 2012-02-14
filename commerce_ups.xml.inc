@@ -1,7 +1,5 @@
 <?php
 
-// $Id$
-
 /**
  * @file
  * Handles XML-related stuff for Commerce UPS module.
@@ -32,10 +30,22 @@ function commerce_ups_build_rate_request($order) {
   $weight = commerce_physical_order_weight($order, 'lb');  // this returns $weight['unit'] and $weight['weight']
   $volume = commerce_physical_order_volume($order, 'in');  // this returns $volume['unit'] and $weight['volume']
 
-  $default_package_volume = variable_get('commerce_ups_default_package_size_length', '0') *variable_get('commerce_ups_default_package_size_width', '0') * variable_get('commerce_ups_default_package_size_height', '0');
+  $default_package_volume = variable_get('commerce_ups_default_package_size_length', '0') * variable_get('commerce_ups_default_package_size_width', '0') * variable_get('commerce_ups_default_package_size_height', '0');
+
+  /* If there is no default package volume, we cannot calculate the number of packages and there is no reason to send to UPS */
+  if ($default_package_volume == 0) {
+    drupal_set_message(t('There was an error with the UPS configuration.'), 'error', FALSE);
+    watchdog('commerce_ups', 'The default measurements for the commerce_ups module is empty or is set to zero. Please set the default package dimensions in the settings page for the commerce_ups module. Without the default measurements this module cannot calculate the number of packages and UPS rates will not be displayed.', array(), WATCHDOG_ALERT);
+    return FALSE;
+  }
+
+  /* If there is no total volume or weight for the order, there is no reason to send the request to UPS */
+  if ($volume['volume'] == NULL || $weight['weight'] == NULL) {
+    return FALSE;
+  }
 
   $number_of_packages = ceil($volume['volume'] / $default_package_volume);
-
+  
   /* Pickup Schedule */
   $schedule_code = variable_get('commerce_ups_pick_up_schedule');
 
@@ -58,7 +68,7 @@ function commerce_ups_build_rate_request($order) {
   $access_request->addChild('Password', $ups_password);
 
   $rating_request = new SimpleXMLElement('<RatingServiceSelectionRequest/>');
-  
+
   $request = $rating_request->addChild('Request');
   $transaction_reference = $request->addChild('TransactionReference');
   $transaction_reference->addChild('CustomerContext', 'Bare Bones Rate Request');
@@ -66,27 +76,29 @@ function commerce_ups_build_rate_request($order) {
   $request->addChild('RequestAction', 'Rate');
   $request->addChild('RequestOption', 'Shop');
   $request->addChild('pickupType')->addChild('code', $schedule_code);
-  
+
   $shipment = $rating_request->addChild('Shipment');
-  
+
   $shipper = $shipment->addChild('Shipper');
   $shipper_address = $shipper->addChild('Address');
   $shipper_address->addChild('PostalCode', variable_get('commerce_ups_postal_code', ''));
   $shipper_address->addChild('CountryCode', variable_get('commerce_ups_country_code', ''));
   $shipper->addChild('ShipperNumber', $ups_accountid);
-  
+
   $shipto = $shipment->addChild('ShipTo');
   $shipto_address = $shipto->addChild('Address');
   $shipto_address->addChild('PostalCode', $shipping_address['postal_code']);
   $shipto_address->addChild('CountryCode', $shipping_address['country']);
-  $shipto->addChild('ResidentialAddressIndicator', '');
-  
+  if (variable_get('commerce_ups_shipto_residential', FALSE)) {
+    $shipto_address->addChild('ResidentialAddressIndicator', 'true');
+  }
+
   $shipfrom = $shipment->addChild('ShipFrom');
   $shipfrom_address = $shipfrom->addChild('Address');
   $shipfrom_address->addChild('PostalCode', variable_get('commerce_ups_postal_code', ''));
-  $shipfrom_address->addChild('CountryCode', variable_get('commerce_ups_county_code', ''));
+  $shipfrom_address->addChild('CountryCode', variable_get('commerce_ups_country_code', ''));
   $shipfrom->addChild('ResidentialAddressIndicator', '');
-    
+
   $package_number = 1;
   for ($i = 1; $package_number <= $number_of_packages; $i++) {
     $package = $shipment->addChild('Package');
