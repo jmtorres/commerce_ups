@@ -15,11 +15,13 @@ function commerce_ups_build_rate_request($order) {
 
   // Determine the shipping profile reference field name for the order.
   $field_name = commerce_physical_order_shipping_field_name($order);
-  $shipping_profile = $order_wrapper->{$field_name}->value();
-
+  
   // Prepare the shipping address for use in the request.
   if (!empty($order_wrapper->{$field_name}->commerce_customer_address)) {
     $shipping_address = $order_wrapper->{$field_name}->commerce_customer_address->value();
+  }
+  else if (!empty($order_wrapper->commerce_customer_shipping->commerce_customer_address)) {
+    $shipping_address = $order_wrapper->commerce_customer_shipping->commerce_customer_address->value();
   }
   else {
     $shipping_address = addressfield_default_values();
@@ -48,13 +50,6 @@ function commerce_ups_build_rate_request($order) {
   
   /* Pickup Schedule */
   $schedule_code = variable_get('commerce_ups_pick_up_schedule');
-
-  /* Ship To - Customer Shipping Address */
-  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
-  // Prepare the shipping address for use in the request.
-  if (!empty($order_wrapper->commerce_customer_shipping->commerce_customer_address)) {
-    $shipping_address = $order_wrapper->commerce_customer_shipping->commerce_customer_address->value();
-  }
 
   $encrypted = variable_get('commerce_ups_encrypt', FALSE);
   $ups_accountid = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_account_id', '')) : variable_get('commerce_ups_account_id', '');
