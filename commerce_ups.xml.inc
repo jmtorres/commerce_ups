@@ -51,16 +51,12 @@ function commerce_ups_build_rate_request($order) {
   /* Pickup Schedule */
   $schedule_code = variable_get('commerce_ups_pick_up_schedule');
 
-  $encrypted = variable_get('commerce_ups_encrypt', FALSE);
-  $ups_accountid = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_account_id', '')) : variable_get('commerce_ups_account_id', '');
-  $ups_userid = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_user_id', '')) : variable_get('commerce_ups_user_id', '');
-  $ups_password = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_password', '')) : variable_get('commerce_ups_password', '');
-  $ups_accesskey = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_access_key', '')) : variable_get('commerce_ups_access_key', '');
+  $api_vars = commerce_ups_decrypt_vars(TRUE);
 
   $access_request = new SimpleXMLElement('<AccessRequest/>');
-  $access_request->addChild('AccessLicenseNumber', $ups_accesskey);
-  $access_request->addChild('UserId', $ups_userid);
-  $access_request->addChild('Password', $ups_password);
+  $access_request->addChild('AccessLicenseNumber', $api_vars['ups_accesskey']);
+  $access_request->addChild('UserId', $api_vars['ups_userid']);
+  $access_request->addChild('Password', $api_vars['ups_password']);
 
   $rating_request = new SimpleXMLElement('<RatingServiceSelectionRequest/>');
 
@@ -78,7 +74,7 @@ function commerce_ups_build_rate_request($order) {
   $shipper_address = $shipper->addChild('Address');
   $shipper_address->addChild('PostalCode', variable_get('commerce_ups_postal_code', ''));
   $shipper_address->addChild('CountryCode', variable_get('commerce_ups_country_code', ''));
-  $shipper->addChild('ShipperNumber', $ups_accountid);
+  $shipper->addChild('ShipperNumber', $api_vars['ups_accountid']);
 
   $shipto = $shipment->addChild('ShipTo');
   $shipto_address = $shipto->addChild('Address');
@@ -163,27 +159,4 @@ function commerce_ups_api_request($xml, $message = '') {
   else {
     return FALSE;
   }
-}
-
-function _array_to_xml($student_info, &$xml_student_info) {
-  foreach ($student_info as $key => $value) {
-    if (is_array($value)) {
-      if (!is_numeric($key)) {
-        $subnode = $xml_student_info->addChild("$key");
-        _array_to_xml($value, $subnode);
-      }
-      else {
-        _array_to_xml($value, $xml_student_info);
-      }
-    }
-    else {
-      $xml_student_info->addChild("$key", "$value");
-    }
-  }
-}
-
-function _xml_to_array($xml) {
-  $str_xml = simplexml_load_string($xml);
-  $json = json_encode($str_xml);
-  return json_decode($json, TRUE);
 }

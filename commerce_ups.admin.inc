@@ -16,20 +16,18 @@ function commerce_ups_settings_form($form, &$form_state) {
   );
 
   $encrypted = variable_get('commerce_ups_encrypt', FALSE);
-  $ups_accountid = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_account_id', '')) : variable_get('commerce_ups_account_id', '');
-  $ups_userid = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_user_id', '')) : variable_get('commerce_ups_user_id', '');
-  $ups_accesskey = $encrypted ? commerce_ups_decrypt(variable_get('commerce_ups_access_key', '')) : variable_get('commerce_ups_access_key', '');
+  $api_vars = commerce_ups_decrypt_vars(FALSE);
 
   $form['api']['commerce_ups_account_id'] = array(
     '#type' => 'textfield',
     '#title' => t('Account ID'),
-    '#default_value' => $ups_accountid,
+    '#default_value' => $api_vars['ups_accountid'],
     '#required' => TRUE,
   );
   $form['api']['commerce_ups_user_id'] = array(
     '#type' => 'textfield',
     '#title' => t('User ID'),
-    '#default_value' => $ups_userid,
+    '#default_value' => $api_vars['ups_userid'],
     '#required' => TRUE,
   );
   $form['api']['commerce_ups_password'] = array(
@@ -41,7 +39,7 @@ function commerce_ups_settings_form($form, &$form_state) {
   $form['api']['commerce_ups_access_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Access Key'),
-    '#default_value' => $ups_accesskey,
+    '#default_value' => $api_vars['ups_accesskey'],
     '#required' => TRUE,
   );
   $form['api']['encryption'] = array(
@@ -58,8 +56,8 @@ function commerce_ups_settings_form($form, &$form_state) {
     $form['api']['encryption']['commerce_ups_encrypt'] = array(
       '#type' => 'checkbox',
       '#title' => t('Encrypt UPS credentials (HIGHLY RECOMMENDED)'),
-      '#description' => t('Note: enabling this setting will not encrypt existing credentials.'),
-      '#default_value' => TRUE,
+      '#description' => t('Note: Enabling this setting automatically will encrypt your password even though you cannot see it. Disabling this checkbox requires that you re-enter a password.'),
+      '#default_value' => $encrypted,
     );
   }
   else {
@@ -197,7 +195,7 @@ function commerce_ups_settings_form($form, &$form_state) {
   $form['packaging']['commerce_ups_packaging'] = array(
     '#type' => 'checkboxes',
     '#options' => _commerce_ups_packaging_types(),
-    '#default_value' => variable_get("commerce_ups_packaging", array())
+    '#default_value' => variable_get('commerce_ups_packaging', array())
   );
   */
   // Fields for default package size (inches)
@@ -263,13 +261,19 @@ function commerce_ups_settings_form($form, &$form_state) {
   return $form;
 }
 
-/* hook_settings_form_validate() */
+/*
+ * Implements hook_form_validate().
+ */
 function commerce_ups_settings_form_validate($form, &$form_state) {
+  $encrypted = variable_get('commerce_ups_encrypt', FALSE) && function_exists('aes_decrypt');
   $values = $form_state['values'];
 
   // If the Password field is empty, then they're not trying to update it and we should ignore it.
   if (empty($values['commerce_ups_password'])) {
     unset($form_state['values']['commerce_ups_password']);
+    if ($encrypted && empty($form_state['input']['commerce_ups_password'])) {
+      form_set_error('commerce_ups_password', t('You must enter in a password to turn off encryption.'));
+    }
     return;
   }
 
@@ -293,18 +297,28 @@ function commerce_ups_settings_form_validate($form, &$form_state) {
  * Implements hook_form_submit().
  */
 function commerce_ups_settings_form_submit($form, &$form_state) {
+  $encrypted = variable_get('commerce_ups_encrypt', FALSE) && function_exists('aes_decrypt');
   // Encrypt the UPS API credentials if available
   if (isset($form_state['input']['commerce_ups_encrypt']) && $form_state['input']['commerce_ups_encrypt']) {
     $form_state['input']['commerce_ups_user_id'] = commerce_ups_encrypt($form_state['input']['commerce_ups_user_id']);
     $form_state['input']['commerce_ups_account_id'] = commerce_ups_encrypt($form_state['input']['commerce_ups_account_id']);
     $form_state['input']['commerce_ups_access_key'] = commerce_ups_encrypt($form_state['input']['commerce_ups_access_key']);
+    if (!empty($form_state['input']['commerce_ups_password'])) {
+      $form_state['input']['commerce_ups_password'] = commerce_ups_encrypt($form_state['input']['commerce_ups_password']);
+  }
+    elseif ($encrypted == FALSE) {
+      // This is an odd case, if encryption is turned on but the password is already in the db
+      // Then we need to pull it from the db, not from the field
+      $form_state['input']['commerce_ups_password'] = commerce_ups_encrypt(variable_get('commerce_ups_password', ''));
+    }
   }
 
   if (empty($form_state['input']['commerce_ups_password'])) {
     unset($form_state['input']['commerce_ups_password']);
   }
-  else {
-    $form_state['input']['commerce_ups_password']= commerce_ups_encrypt($form_state['input']['commerce_ups_password']);
+
+  if (!isset($form_state['input']['commerce_ups_encrypt'])) {
+    $form_state['input']['commerce_ups_encrypt'] = FALSE;
   }
 
   $fields = array(
