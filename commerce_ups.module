@@ -49,7 +49,7 @@ function commerce_ups_commerce_shipping_service_info() {
   $selected_services = variable_get('commerce_ups_services', array());
 
   foreach ($selected_services as $id => $val) {
-    if ($val != 0) { // if you find a selected one...
+    if (!empty($val)) { // if you find a selected one...
       $service = $available_services[$id];
       $shipping_services[$id] = array(
         'title' => t($service['title']),
@@ -181,6 +181,11 @@ function _commerce_ups_pickup_types() {
 function commerce_ups_commerce_shipping_service_name($service_code) {
   //$service_names = _commerce_ups_service_list();
   return 'ups_' . $service_code;
+}
+
+function commerce_ups_commerce_shipping_service($service){
+  $services = _commerce_ups_service_list();
+  return $services[$service];
 }
 
 /**
