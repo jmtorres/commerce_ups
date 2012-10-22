@@ -133,7 +133,7 @@ function _commerce_ups_service_list() {
     'UPS_12' => array('code' => '12', 'title' => t('UPS 3 Day Select'), 'description' => t('3 Day Select')),
     'UPS_02' => array('code' => '02', 'title' => t('UPS 2nd Day Air'), 'description' => t('2nd Day Air')),
     'UPS_59' => array('code' => '59', 'title' => t('UPS 2nd Day Air A.M.'), 'description' => t('2nd Day Air A.M.')),
-  	'UPS_13' => array('code' => '13', 'title' => t('UPS Next Day Air Saver'), 'description' => t('Next Day Air Saver')),
+    'UPS_13' => array('code' => '13', 'title' => t('UPS Next Day Air Saver'), 'description' => t('Next Day Air Saver')),
     'UPS_01' => array('code' => '01', 'title' => t('UPS Next Day Air'), 'description' => t('Next Day Air')),
     'UPS_14' => array('code' => '14', 'title' => t('UPS Next Day Early A.M.'), 'description' => t('Next Day Early A.M.')),
     // International services
@@ -180,7 +180,7 @@ function _commerce_ups_pickup_types() {
 
 function commerce_ups_commerce_shipping_service_name($service_code) {
   //$service_names = _commerce_ups_service_list();
-  return 'ups_' . $service_code;
+  return 'UPS_' . $service_code;
 }
 
 function commerce_ups_commerce_shipping_service($service){
